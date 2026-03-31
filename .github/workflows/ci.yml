@@ -2,22 +2,47 @@ name: CI Check
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main", "development"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
-    - name: Run script
-      run: node main.js
+      - name: Run script
+        run: node main.js
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run app
+        run: node app.js
+
+      - name: Run linter (eslint)
+        run: npx eslint app.js utils.js utils.test.js
+
+      - name: Run formatter check (prettier)
+        run: npx prettier --check app.js utils.js utils.test.js
+
+      - name: Run tests (jest)
+        run: npx jest --verbose
+
+      - name: Send Telegram notification
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          MESSAGE="🔔 CI Pipeline: *${STATUS}*%0A📦 Repo: *${{ github.repository }}*%0A🌿 Branch: *${{ github.ref_name }}*%0A💬 Commit: ${{ github.event.head_commit.message }}%0A🔗 [View Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+            -d text="$MESSAGE" \
+            -d parse_mode=Markdown
