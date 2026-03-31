@@ -39,10 +39,21 @@ jobs:
 
       - name: Send Telegram notification
         if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           STATUS="${{ job.status }}"
-          MESSAGE="🔔 CI Pipeline: *${STATUS}*%0A📦 Repo: *${{ github.repository }}*%0A🌿 Branch: *${{ github.ref_name }}*%0A💬 Commit: ${{ github.event.head_commit.message }}%0A🔗 [View Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
-            -d text="$MESSAGE" \
-            -d parse_mode=Markdown
+          MESSAGE="🔔 CI Pipeline: *${STATUS}*
+          📦 Repo: *${{ github.repository }}*
+          🌿 Branch: *${{ github.ref_name }}*
+          💬 Commit: ${{ github.event.head_commit.message }}
+          🔗 [View Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="${MESSAGE}" \
+            -d parse_mode=Markdown)
+          echo "Telegram API response: $RESPONSE"
+          if echo "$RESPONSE" | grep -q '"ok":false'; then
+            echo "::warning::Telegram notification failed"
+          fi
